@@ -21,7 +21,7 @@ function Mix (baseClass, ...mixins) {
               .forEach(prop => {
                  if (!prop.toString().match(/^(?:constructor|prototype|arguments|caller|name|bind|call|apply|toString|length)$/))
                     Object.defineProperty(target, prop, Object.getOwnPropertyDescriptor(source, prop));
-               })
+               });
     } //copyProps
     mixins.forEach((mixin) => {
         copyProps(base.prototype, mixin.prototype);
@@ -45,10 +45,11 @@ class Caesar extends Mix(events.EventEmitter, String, Array) {
 		this.value = value;
 		this._value = value;
 		this._file = file;
+		this._ready = true;
+		this.cipher();
 		this._ready = !file;
 		this.wheel = wheel;
 		this.safe = safe;
-		this.cipher();
 		this.key = key;
 		this._key = key;
 	}
@@ -131,7 +132,7 @@ class Caesar extends Mix(events.EventEmitter, String, Array) {
 		}
 	}
 	static fromFile(path, key = this.key) {
-		var cae = new Caesar(undefined, key, true);
+		var cae = new Caesar(path, key, path);
 		if (!path) {
 			let err = new Error("'path' is a required argument.");
 			err.code = 'ENOPATH';
@@ -139,7 +140,6 @@ class Caesar extends Mix(events.EventEmitter, String, Array) {
 			process.emit('fail', err);
 			throw err;
 		}
-		cae._file = path;
 		cae.save = function(path = cae._file) {
 			fs.writeFile(path, this.value, data => this.emit('saved', data));
 			return cae;
@@ -147,7 +147,7 @@ class Caesar extends Mix(events.EventEmitter, String, Array) {
 		fs.readFile(path, (err, data) => {
 			if (!err) {
 				cae._ready = true;
-				cae._value = cae.value = data;
+				cae._value = cae.value = data + '';
 				cae.emit('ready', cae, data);
 			} else {
 				let err = new Error('Reading file failed.');
