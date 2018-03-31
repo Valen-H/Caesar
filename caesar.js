@@ -6,8 +6,32 @@ events = require('events'),
 ASCII = Symbol('ASCII'),
 falseReg = /^(false|null|""|''|0|off|no|[]|{}|``|)$/gi;
 
-class Caesar extends events.EventEmitter {
-	constructor(value, key, file = false, wheel = Caesar.wheel, safe = Caesar.safe) {
+function Mix (baseClass, ...mixins) {
+    class base extends baseClass {
+        constructor (...args) {
+            super(...args);
+            mixins.forEach(mixin => {
+                copyProps(this, (new mixin));
+            });
+        }
+    } //base
+    function copyProps(target, source) {
+        Object.getOwnPropertyNames(source)
+              .concat(Object.getOwnPropertySymbols(source))
+              .forEach(prop => {
+                 if (!prop.toString().match(/^(?:constructor|prototype|arguments|caller|name|bind|call|apply|toString|length)$/))
+                    Object.defineProperty(target, prop, Object.getOwnPropertyDescriptor(source, prop));
+               })
+    } //copyProps
+    mixins.forEach((mixin) => {
+        copyProps(base.prototype, mixin.prototype);
+        copyProps(base, mixin);
+    });
+    return base;
+} //Mix
+
+class Caesar extends Mix(events.EventEmitter, String, Array) {
+	constructor(value, key = 0, file = false, wheel = Caesar.wheel, safe = Caesar.safe) {
 		super();
 		this.key = key;
 		this._key = key;
@@ -24,6 +48,9 @@ class Caesar extends events.EventEmitter {
 		this._ready = !file;
 		this.wheel = wheel;
 		this.safe = safe;
+		this.cipher();
+		this.key = key;
+		this._key = key;
 	}
 	cipher(key, value, wheel = this.wheel, safe = this.safe) {
 		if (this._file && !this._ready) {
@@ -142,6 +169,24 @@ class Caesar extends events.EventEmitter {
 		}
 		fs.writeFile(path, this.value, data => this.emit('saved', data));
 		return this;
+	}
+	toString() {
+		return this.value;
+	}
+	get [Symbol.toStringTag]() {
+		return 'Caesar';
+	}
+	[Symbol.hasInstance](instance) {
+		return instance instanceof Array || instance instanceof String;
+	}
+	[Symbol.toPrimitive](hint) {
+		if (hint == 'number' && /^[0-9]+$/.test(this.toString())) {
+			return this.toString() * 1;
+		}
+		return this.toString() + '';
+	}
+	static get [Symbol.species]() {
+		return String;
 	}
 } //Caesar
 const wheel = Caesar.wheel = process.env.wheel || process.argv[5] || ASCII,
