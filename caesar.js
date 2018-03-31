@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+String.prototype.map = Array.prototype.map;
 
 const fs = require('fs'),
 events = require('events'),
@@ -91,9 +92,9 @@ class Caesar extends Mix(events.EventEmitter, String, Array) {
 		if (!value || !key) {
 			return value;
 		}
-		return (value = Buffer.from(value)).map(chunk => {
+		return (value = Buffer.from(value)).map((chunk, index, array) => {
 			if (wheel === HEX) return chunk + key * 1;
-			if (wheel === ASCII || (safe && wheel.indexOf(chunk) < 0) || (wheel.length == 1 && wheel[0] == chunk)) return String.fromCharCode(chunk.charCodeAt(0) + key * 1);
+			if (wheel === ASCII || (safe && wheel.indexOf(chunk) < 0) || (wheel.length == 1 && wheel[0] == chunk)) return Buffer.from(String.fromCharCode(array.toString().charCodeAt(index) + key * 1))[0];
 			if (wheel.indexOf(chunk) >= 0) return wheel[wheel.indexOf(chunk) + key * 1];
 			return chunk;
 		});
@@ -102,9 +103,9 @@ class Caesar extends Mix(events.EventEmitter, String, Array) {
 		if (!value || !key) {
 			return value;
 		}
-		return (value = Buffer.from(value)).map(chunk => {
+		return (value = Buffer.from(value)).map((chunk, index, array) => {
 			if (wheel === HEX) return chunk - key;
-			if (wheel === ASCII || (safe && wheel.indexOf(chunk) < 0) || (wheel.length == 1 && wheel[0] == chunk)) return String.fromCharCode(chunk.charCodeAt(0) - key);
+			if (wheel === ASCII || (safe && wheel.indexOf(chunk) < 0) || (wheel.length == 1 && wheel[0] == chunk)) return Buffer.from(String.fromCharCode(array.toString().charCodeAt(index) - key))[0];
 			if (wheel.indexOf(chunk) >= 0) return wheel[wheel.indexOf(chunk) - key];
 			return chunk;
 		});
@@ -145,6 +146,9 @@ class Caesar extends Mix(events.EventEmitter, String, Array) {
 		return this;
 	}
 	toString() {
+		return this.value.toString();
+	}
+	get buffer() {
 		return this.value;
 	}
 	get [Symbol.toStringTag]() {
