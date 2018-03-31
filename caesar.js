@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-String.prototype.toString = Array.prototype.toString;
-// some platforms need polyfill!
 
 const fs = require('fs'),
 events = require('events'),
@@ -13,6 +11,13 @@ class Caesar extends events.EventEmitter {
 		super();
 		this.key = key;
 		this._key = key;
+		if (!(value instanceof Array || value instanceof String || typeof value === "string")) {
+			let err = new Error("Only Arrays and Strings allowed.");
+			err.code = 'ENOSUPPORT';
+			this.emit('fail', err);
+			process.emit('fail', err);
+			throw err;
+		}
 		this.value = value;
 		this._value = value;
 		this._file = file;
@@ -25,7 +30,7 @@ class Caesar extends events.EventEmitter {
 			let err = new Error("File not ready.");
 			err.code = 'ENOTREADY';
 			this.emit('fail', err);
-			emit('fail', err);
+			process.emit('fail', err);
 			throw err;
 		}
 		if (value) {
@@ -40,7 +45,7 @@ class Caesar extends events.EventEmitter {
 			let err = new Error("File not ready.");
 			err.code = 'ENOTREADY';
 			this.emit('fail', err);
-			emit('fail', err);
+			process.emit('fail', err);
 			throw err;
 		}
 		if (value) {
@@ -54,36 +59,48 @@ class Caesar extends events.EventEmitter {
 		if (!value || !key) {
 			return value;
 		}
-		if (!(value instanceof Array)) {
-			return value.toString().split("").map(chunk => {
+		if (value instanceof String|| typeof value === "string") {
+			return value.split("").map(chunk => {
 				if (wheel === ASCII || (safe && wheel.indexOf(chunk) < 0) || (wheel.length == 1 && wheel[0] == chunk)) return String.fromCharCode(chunk.charCodeAt(0) + key * 1);
 				if (wheel.indexOf(chunk) >= 0) return wheel[wheel.indexOf(chunk) + key * 1];
 				return chunk;
 			}).join("");
-		} else {
+		} else if (value instanceof Array) {
 			return value.map(chunk => {
 				if (wheel === ASCII || (safe && wheel.indexOf(chunk) < 0) || (wheel.length == 1 && wheel[0] == chunk)) return String.fromCharCode(chunk.charCodeAt(0) + key * 1);
 				if (wheel.indexOf(chunk) >= 0) return wheel[wheel.indexOf(chunk) + key * 1];
 				return chunk;
 			});
+		} else {
+			let err = new Error("Only Arrays and Strings allowed.");
+			err.code = 'ENOSUPPORT';
+			this.emit('fail', err);
+			process.emit('fail', err);
+			throw err;
 		}
 	}
 	static decipher(value, key = 0, wheel = Caesar.wheel, safe = Caesar.safe) {
 		if (!value || !key) {
 			return value;
 		}
-		if (!(value instanceof Array)) {
-			return value.toString().split("").map(chunk => {
+		if (value instanceof String|| typeof value === "string") {
+			return value.split("").map(chunk => {
 				if (wheel === ASCII || (safe && wheel.indexOf(chunk) < 0) || (wheel.length == 1 && wheel[0] == chunk)) return String.fromCharCode(chunk.charCodeAt(0) - key);
 				if (wheel.indexOf(chunk) >= 0) return wheel[wheel.indexOf(chunk) - key ];
 				return chunk;
 			}).join("");
-		} else {
+		} else if (value instanceof Array) {
 			return value.map(chunk => {
 				if (wheel === ASCII || (safe && wheel.indexOf(chunk) < 0) || (wheel.length == 1 && wheel[0] == chunk)) return String.fromCharCode(chunk.charCodeAt(0) - key);
 				if (wheel.indexOf(chunk) >= 0) return wheel[wheel.indexOf(chunk) - key];
 				return chunk;
 			});
+		} else {
+			let err = new Error("Only Arrays and Strings allowed.");
+			err.code = 'ENOSUPPORT';
+			this.emit('fail', err);
+			process.emit('fail', err);
+			throw err;
 		}
 	}
 	static fromFile(path, key = this.key) {
@@ -92,7 +109,7 @@ class Caesar extends events.EventEmitter {
 			let err = new Error("'path' is a required argument.");
 			err.code = 'ENOPATH';
 			cae.emit('fail', err);
-			emit('fail', err);
+			process.emit('fail', err);
 			throw err;
 		}
 		cae._file = path;
@@ -109,7 +126,7 @@ class Caesar extends events.EventEmitter {
 				let err = new Error('Reading file failed.');
 				err.code = 'EREADFAIL';
 				cae.emit('fail', err);
-				emit('fail', err);
+				process.emit('fail', err);
 				throw err;
 			}
 		});
@@ -120,7 +137,7 @@ class Caesar extends events.EventEmitter {
 			let err = new Error('Writing file failed.');
 			err.code = 'EWRITEFAIL';
 			cae.emit('fail', err);
-			emit('fail', err);
+			process.emit('fail', err);
 			throw err;
 		}
 		fs.writeFile(path, this.value, data => this.emit('saved', data));
@@ -151,7 +168,7 @@ if (require.main !== module) {
 	} else {
 		let err = new Error("Illegal 'mode' passed.");
 		err.code = 'EILLMODE';
-		emit('fail', err);
+		process.emit('fail', err);
 		throw err;
 	}
 }
