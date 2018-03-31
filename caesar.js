@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-String.prototype.map = Array.prototype.map;
 
 const fs = require('fs'),
 events = require('events'),
