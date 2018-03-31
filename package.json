@@ -1,0 +1,26 @@
+{
+  "name": "caesar",
+  "version": "1.0.0",
+  "description": "A file encryptor with caesar cipher algorithm.",
+  "main": "caesar.js",
+  "scripts": {
+    "test": "npm install -g",
+    "start": "node caesar.js",
+    "cipher": "mode=cipher npm start --no-deprecation",
+    "decipher": "mode=decipher npm start --no-deprecation"
+  },
+  "bin": {
+  	 "cc": "./caesar.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "none"
+  },
+  "keywords": [
+    "caesar",
+    "encryption",
+    "file"
+  ],
+  "author": "ValentinHacker",
+  "license": "ISC"
+}
