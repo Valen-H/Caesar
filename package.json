@@ -7,7 +7,8 @@
     "test": "npm install -g",
     "start": "node caesar.js",
     "cipher": "mode=cipher npm start --no-deprecation",
-    "decipher": "mode=decipher npm start --no-deprecation"
+    "decipher": "mode=decipher npm start --no-deprecation",
+    "help": "echo 'npm start file key mode wheel safe'"
   },
   "bin": {
   	 "cc": "./caesar.js"

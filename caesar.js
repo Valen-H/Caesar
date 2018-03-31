@@ -4,30 +4,30 @@ const fs = require('fs'),
 events = require('events'),
 
 ASCII = Symbol('ASCII'),
+HEX = Symbol('HEX'),
 falseReg = /^(false|null|""|''|0|off|no|[]|{}|``|)$/gi;
 
 function Mix (baseClass, ...mixins) {
-    class base extends baseClass {
-        constructor (...args) {
-            super(...args);
-            mixins.forEach(mixin => {
-                copyProps(this, (new mixin));
-            });
-        }
-    } //base
-    function copyProps(target, source) {
-        Object.getOwnPropertyNames(source)
-              .concat(Object.getOwnPropertySymbols(source))
-              .forEach(prop => {
-                 if (!prop.toString().match(/^(?:constructor|prototype|arguments|caller|name|bind|call|apply|toString|length)$/))
-                    Object.defineProperty(target, prop, Object.getOwnPropertyDescriptor(source, prop));
-               });
-    } //copyProps
-    mixins.forEach((mixin) => {
-        copyProps(base.prototype, mixin.prototype);
-        copyProps(base, mixin);
-    });
-    return base;
+	class base extends baseClass {
+		constructor (...args) {
+			super(...args);
+			mixins.forEach(mixin => {
+				copyProps(this, (new mixin));
+			});
+		}
+	} //base
+	function copyProps(target, source) {
+		Object.getOwnPropertyNames(source).concat(Object.getOwnPropertySymbols(source)).forEach(prop => {
+			if (!prop.toString().match(/^(?:constructor|prototype|arguments|caller|name|bind|call|apply|toString|length)$/)) {
+				Object.defineProperty(target, prop, Object.getOwnPropertyDescriptor(source, prop));
+			}
+		});
+	} //copyProps
+	mixins.forEach((mixin) => {
+		copyProps(base.prototype, mixin.prototype);
+		copyProps(base, mixin);
+	});
+	return base;
 } //Mix
 
 class Caesar extends Mix(events.EventEmitter, String, Array) {
@@ -35,12 +35,16 @@ class Caesar extends Mix(events.EventEmitter, String, Array) {
 		super();
 		this.key = key;
 		this._key = key;
-		if (!(value instanceof Array || value instanceof String || typeof value === "string")) {
-			let err = new Error("Only Arrays and Strings allowed.");
-			err.code = 'ENOSUPPORT';
-			this.emit('fail', err);
-			process.emit('fail', err);
-			throw err;
+		if (!(value instanceof Buffer)) {
+			try {
+				value = Buffer.from(value);
+			} catch (e) {
+				let err = new Error("'value' must be an array-like object.");
+				err.code = 'ENOSUPPORT';
+				this.emit('fail', err);
+				process.emit('fail', err);
+				throw err;
+			}
 		}
 		this.value = value;
 		this._value = value;
@@ -87,49 +91,23 @@ class Caesar extends Mix(events.EventEmitter, String, Array) {
 		if (!value || !key) {
 			return value;
 		}
-		if (value instanceof String|| typeof value === "string") {
-			return value.split("").map(chunk => {
-				if (wheel === ASCII || (safe && wheel.indexOf(chunk) < 0) || (wheel.length == 1 && wheel[0] == chunk)) return String.fromCharCode(chunk.charCodeAt(0) + key * 1);
-				if (wheel.indexOf(chunk) >= 0) return wheel[wheel.indexOf(chunk) + key * 1];
-				return chunk;
-			}).join("");
-		} else if (value instanceof Array) {
-			return value.map(chunk => {
-				if (wheel === ASCII || (safe && wheel.indexOf(chunk) < 0) || (wheel.length == 1 && wheel[0] == chunk)) return String.fromCharCode(chunk.charCodeAt(0) + key * 1);
-				if (wheel.indexOf(chunk) >= 0) return wheel[wheel.indexOf(chunk) + key * 1];
-				return chunk;
-			});
-		} else {
-			let err = new Error("Only Arrays and Strings allowed.");
-			err.code = 'ENOSUPPORT';
-			this.emit('fail', err);
-			process.emit('fail', err);
-			throw err;
-		}
+		return (value = Buffer.from(value)).map(chunk => {
+			if (wheel === HEX) return chunk + key * 1;
+			if (wheel === ASCII || (safe && wheel.indexOf(chunk) < 0) || (wheel.length == 1 && wheel[0] == chunk)) return String.fromCharCode(chunk.charCodeAt(0) + key * 1);
+			if (wheel.indexOf(chunk) >= 0) return wheel[wheel.indexOf(chunk) + key * 1];
+			return chunk;
+		});
 	}
 	static decipher(value, key = 0, wheel = Caesar.wheel, safe = Caesar.safe) {
 		if (!value || !key) {
 			return value;
 		}
-		if (value instanceof String|| typeof value === "string") {
-			return value.split("").map(chunk => {
-				if (wheel === ASCII || (safe && wheel.indexOf(chunk) < 0) || (wheel.length == 1 && wheel[0] == chunk)) return String.fromCharCode(chunk.charCodeAt(0) - key);
-				if (wheel.indexOf(chunk) >= 0) return wheel[wheel.indexOf(chunk) - key ];
-				return chunk;
-			}).join("");
-		} else if (value instanceof Array) {
-			return value.map(chunk => {
-				if (wheel === ASCII || (safe && wheel.indexOf(chunk) < 0) || (wheel.length == 1 && wheel[0] == chunk)) return String.fromCharCode(chunk.charCodeAt(0) - key);
-				if (wheel.indexOf(chunk) >= 0) return wheel[wheel.indexOf(chunk) - key];
-				return chunk;
-			});
-		} else {
-			let err = new Error("Only Arrays and Strings allowed.");
-			err.code = 'ENOSUPPORT';
-			this.emit('fail', err);
-			process.emit('fail', err);
-			throw err;
-		}
+		return (value = Buffer.from(value)).map(chunk => {
+			if (wheel === HEX) return chunk - key;
+			if (wheel === ASCII || (safe && wheel.indexOf(chunk) < 0) || (wheel.length == 1 && wheel[0] == chunk)) return String.fromCharCode(chunk.charCodeAt(0) - key);
+			if (wheel.indexOf(chunk) >= 0) return wheel[wheel.indexOf(chunk) - key];
+			return chunk;
+		});
 	}
 	static fromFile(path, key = this.key) {
 		var cae = new Caesar(path, key, path);
@@ -140,14 +118,10 @@ class Caesar extends Mix(events.EventEmitter, String, Array) {
 			process.emit('fail', err);
 			throw err;
 		}
-		cae.save = function(path = cae._file) {
-			fs.writeFile(path, this.value, data => this.emit('saved', data));
-			return cae;
-		};
 		fs.readFile(path, (err, data) => {
 			if (!err) {
 				cae._ready = true;
-				cae._value = cae.value = data + '';
+				cae._value = cae.value = data;
 				cae.emit('ready', cae, data);
 			} else {
 				let err = new Error('Reading file failed.');
@@ -189,8 +163,13 @@ class Caesar extends Mix(events.EventEmitter, String, Array) {
 		return String;
 	}
 } //Caesar
-const wheel = Caesar.wheel = process.env.wheel || process.argv[5] || ASCII,
+var temp = ASCII;
+if (process.env.wheel || process.argv[5]) {
+	temp = /^HEXA?(DECIMAL)?/i.test(process.env.wheel || process.argv[5]) ? HEX : process.env.wheel || process.argv[5];
+}
+const wheel = Caesar.wheel = temp,
 safe = Caesar.safe = !falseReg.test(process.env.safe || !!process.argv[6] || false);
+Caesar.ASCII = ASCII, Caesar.HEX = HEX;
 
 if (require.main !== module) {
 	module.exports = Caesar;
@@ -203,12 +182,12 @@ if (require.main !== module) {
 	} else if (/^c(iph|ipher)?/i.test(mode)) {
 		Caesar.fromFile(file).once('ready', (cae, data) => {
 			cae.cipher(key);
-			cae.save().once('saved', () => console.info(`File ${file} Ciphered with key : ${key}`));
+			cae.toFile().once('saved', () => console.info(`File ${file} Ciphered with key : ${key}`));
 		});
 	} else if (/^de?c?(iph|ipher)?/i.test(mode)) {
 		Caesar.fromFile(file).once('ready', (cae, data) => {
 			cae.decipher(key);
-			cae.save().once('saved', () => console.info(`File ${file} Deciphered with key : ${key}`));
+			cae.toFile().once('saved', () => console.info(`File ${file} Deciphered with key : ${key}`));
 		});
 	} else {
 		let err = new Error("Illegal 'mode' passed.");
